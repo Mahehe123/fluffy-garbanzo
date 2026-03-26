@@ -830,6 +830,9 @@ body::before{
 .ff-alltime-mvp-stats{display:flex;justify-content:center;gap:10px;margin-top:6px;font-size:13px;font-weight:700;color:rgba(194,94,0,.7)}
 .ff-alltime-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 
+.ff-session-picker{margin-bottom:4px}
+.ff-session-picker select{cursor:pointer}
+
 .io-row{display:flex;gap:10px;margin-bottom:14px}
 </style>
 </head>
@@ -2691,37 +2694,72 @@ function renderFunFacts(){
     </div>`;
   }
 
-
-
-  // ── PER-SESSION FUN FACTS ──
-  DB.sessions.forEach((s,idx)=>{
-    if(!s.scoreLog||!s.scoreLog.length) return;
-    const facts = computeSessionFunFacts(s);
-    if(!facts) return;
-
-    html+=`<div class="card a1" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div>
-          <div class="card-label" style="margin-bottom:2px">📅 ${s.date}</div>
-          <div style="font-size:12px;font-weight:600;color:var(--muted)">${s.rounds} rounds · ${s.players} players</div>
+  // ── LATEST SESSION FUN FACTS (always visible) ──
+  if(latest && latest.scoreLog && latest.scoreLog.length){
+    const facts = computeSessionFunFacts(latest);
+    if(facts){
+      html += `<div class="card a1" id="ff-session-facts-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <div class="card-label" style="margin-bottom:2px">🎲 Session Fun Facts</div>
+            <div style="font-size:12px;font-weight:600;color:var(--muted)">${latest.date} · ${latest.rounds} rounds</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="shareFunFactsWA(0)" style="font-size:12px;padding:7px 12px">📲 Share</button>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="shareFunFactsWA(${idx})" style="font-size:12px;padding:7px 12px">📲 Share</button>
-      </div>
-      <div class="ff-facts-grid">
-        ${renderFactCard('🏃', 'THE MARATHON', facts.marathon.name, facts.marathon.value+' games played', '#e3f2fd', '#1e88e5')}
-        ${renderFactCard('🧱', 'THE WALL', facts.wall.name, facts.wall.value+' pts conceded avg', '#e8f5e9', '#43a047')}
-        ${renderFactCard('🎯', 'THE SNIPER', facts.sniper.name, facts.sniper.value+'% win rate', '#fff8e1', '#f9a825')}
-        ${renderFactCard('💥', 'POINT MACHINE', facts.machine.name, facts.machine.value+' pts scored', '#fbe9e7', '#f4511e')}
-        ${renderFactCard('🤝', 'POWER PAIR', facts.pair.name, facts.pair.value+' wins together', '#f3e5f5', '#8e24aa')}
-        ${facts.comeback ? renderFactCard('⚡', 'NAIL-BITER', facts.comeback.name, facts.comeback.value, '#e0f2f1', '#00897b') : ''}
-      </div>
-    </div>`;
-  });
+        ${buildFactsGrid(facts)}
+      </div>`;
+    }
+  }
 
-    // ── ALL-TIME BLOCK ──
+  // ── ALL-TIME BLOCK ──
   html += buildAllTimeFunFacts();
 
+  // ── PAST SESSIONS DROPDOWN (only if >1 session with score logs) ──
+  const pastSessions = DB.sessions.slice(1).map((s,i)=>({s,idx:i+1})).filter(({s})=>s.scoreLog&&s.scoreLog.length);
+  if(pastSessions.length){
+    html+=`
+    <div class="card a3" style="margin-bottom:16px">
+      <div class="card-label" style="margin-bottom:10px">📂 Past Session Facts</div>
+      <div class="ff-session-picker">
+        <select class="input" id="ff-session-select" onchange="renderPastSessionFacts()" style="font-size:14px;padding:10px 14px">
+          <option value="">— Select a session —</option>
+          ${pastSessions.map(({s,idx})=>`<option value="${idx}">${s.date} · ${s.rounds} rounds · ${s.players} players</option>`).join('')}
+        </select>
+      </div>
+      <div id="ff-past-facts" style="margin-top:12px"></div>
+    </div>`;
+  }
+
   el.innerHTML = html || '<div class="empty-state"><span class="es-icon">🎲</span><div class="es-text">No detailed stats yet</div><div class="es-sub">Sessions need score logs for fun facts</div></div>';
+}
+
+function buildFactsGrid(facts){
+  return `<div class="ff-facts-grid">
+    ${renderFactCard('🏃','THE MARATHON',facts.marathon.name,facts.marathon.value+' games played','#e3f2fd','#1e88e5')}
+    ${renderFactCard('🧱','THE WALL',facts.wall.name,facts.wall.value+' pts conceded avg','#e8f5e9','#43a047')}
+    ${renderFactCard('🎯','THE SNIPER',facts.sniper.name,facts.sniper.value+'% win rate','#fff8e1','#f9a825')}
+    ${renderFactCard('💥','POINT MACHINE',facts.machine.name,facts.machine.value+' pts scored','#fbe9e7','#f4511e')}
+    ${renderFactCard('🤝','POWER PAIR',facts.pair.name,facts.pair.value+' wins together','#f3e5f5','#8e24aa')}
+    ${facts.comeback?renderFactCard('⚡','NAIL-BITER',facts.comeback.name,facts.comeback.value,'#e0f2f1','#00897b'):''}
+  </div>`;
+}
+
+function renderPastSessionFacts(){
+  const sel = document.getElementById('ff-session-select');
+  const panel = document.getElementById('ff-past-facts');
+  if(!sel||!panel) return;
+  const idx = parseInt(sel.value);
+  if(isNaN(idx)||idx<0){ panel.innerHTML=''; return; }
+  const s = DB.sessions[idx];
+  if(!s||!s.scoreLog||!s.scoreLog.length){ panel.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px;font-weight:600">No score data for this session</div>'; return; }
+  const facts = computeSessionFunFacts(s);
+  if(!facts){ panel.innerHTML=''; return; }
+  panel.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2)">${s.date} · ${s.rounds} rounds · ${s.players} players</div>
+      <button class="btn btn-outline btn-sm" onclick="shareFunFactsWA(${idx})" style="font-size:12px;padding:7px 12px">📲 Share</button>
+    </div>
+    ${buildFactsGrid(facts)}`;
 }
 
 function renderFactCard(icon, title, name, sub, bg, color){
