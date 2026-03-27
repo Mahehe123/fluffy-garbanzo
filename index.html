@@ -830,6 +830,26 @@ body::before{
 .ff-alltime-mvp-stats{display:flex;justify-content:center;gap:10px;margin-top:6px;font-size:13px;font-weight:700;color:rgba(194,94,0,.7)}
 .ff-alltime-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 
+/* ═══════════════════════════════════════
+   ── POINTS AT STAKE BAR ──
+═══════════════════════════════════════ */
+.stake-bar{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 12px;margin:0 0 4px;
+  background:linear-gradient(90deg,rgba(30,136,229,.06),rgba(142,36,170,.06));
+  border-top:1px solid var(--border);
+  font-size:11px;
+}
+.stake-team{flex:1;display:flex;flex-direction:column;gap:2px}
+.stake-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stake-pts{font-size:12px;font-weight:900;letter-spacing:.3px}
+.stake-pts.win{color:var(--teal)}
+.stake-pts.loss{color:var(--red)}
+.stake-divider{font-size:16px;flex-shrink:0;opacity:.5}
+
+/* Live strip with elo */
+.ls-chip.ls-lead{border-color:var(--teal-mid);background:var(--teal-lt)}
+
 .ff-session-picker{margin-bottom:4px}
 .ff-session-picker select{cursor:pointer}
 
@@ -1166,14 +1186,92 @@ function saveStore() {
 
 let DB = loadStore();
 
+/* ═══════════════════════════════════════════
+   ELO ENGINE
+═══════════════════════════════════════════ */
+const ELO_TIERS = [
+  { min:1700, emoji:'🏯', label:'Court Shogun' },
+  { min:1550, emoji:'🔥', label:'Court Enforcer' },
+  { min:1400, emoji:'⚡', label:'Rally Ace' },
+  { min:1250, emoji:'🥷', label:'Dinking Ninja' },
+  { min:1100, emoji:'🥒', label:'Dinking Rookie' },
+  { min:0,    emoji:'🌱', label:'Kitchen Sprout' },
+];
+
+function eloTier(rating){
+  return ELO_TIERS.find(t=>rating>=t.min)||ELO_TIERS[ELO_TIERS.length-1];
+}
+
+function eloKFactor(gamesPlayed){
+  return gamesPlayed < 10 ? 48 : 32;
+}
+
+function calcEloExpected(rA, rB){
+  return 1 / (1 + Math.pow(10, (rB - rA) / 400));
+}
+
+function applyEloResult(winners, losers){
+  // Team ratings = average of two players
+  const getElo = name => (DB.players[name]&&DB.players[name].elo) || 1200;
+  const getGames = name => {
+    const p = DB.players[name];
+    return p ? (p.wins||0)+(p.losses||0) : 0;
+  };
+
+  const rA = (getElo(winners[0]) + getElo(winners[1])) / 2;
+  const rB = (getElo(losers[0])  + getElo(losers[1]))  / 2;
+  const eA = calcEloExpected(rA, rB);
+  const eB = 1 - eA;
+
+  const changes = {};
+  winners.forEach(p=>{
+    const k = eloKFactor(getGames(p));
+    const delta = Math.round(k * (1 - eA));
+    changes[p] = delta;
+    if(DB.players[p]){ DB.players[p].elo = Math.max(100, (DB.players[p].elo||1200) + delta); }
+  });
+  losers.forEach(p=>{
+    const k = eloKFactor(getGames(p));
+    const delta = Math.round(k * (0 - eB));
+    changes[p] = delta;
+    if(DB.players[p]){ DB.players[p].elo = Math.max(100, (DB.players[p].elo||1200) + delta); }
+  });
+  return changes; // { playerName: deltaInt }
+}
+
+function calcPointsAtStake(winners, losers){
+  // Returns {winW, lossW, winL, lossL} — points at stake for each team
+  const getElo = name => (DB.players[name]&&DB.players[name].elo) || 1200;
+  const getGames = name => { const p=DB.players[name]; return p?(p.wins||0)+(p.losses||0):0; };
+  const rA = (getElo(winners[0])+getElo(winners[1]))/2;
+  const rB = (getElo(losers[0]) +getElo(losers[1])) /2;
+  const eA = calcEloExpected(rA,rB);
+  const eB = 1-eA;
+  const kW = Math.round((eloKFactor(getGames(winners[0]))+eloKFactor(getGames(winners[1])))/2);
+  const kL = Math.round((eloKFactor(getGames(losers[0])) +eloKFactor(getGames(losers[1]))) /2);
+  return {
+    winW:  +Math.round(kW*(1-eA)),
+    lossW: +Math.round(kW*(0-eB)),
+    winL:  +Math.round(kL*(1-eB)),
+    lossL: +Math.round(kL*(0-eA)),
+  };
+}
+
+// Migrate existing players to have elo:1200 if missing
+function migrateElo(){
+  Object.values(DB.players).forEach(p=>{ if(p.elo===undefined) p.elo=1200; });
+}
+migrateElo();
+
 // Player record schema:
-// DB.players[name] = { sessions:0, wins:0, losses:0, ptsFor:0, ptsAgainst:0, pairWins:{}, nemesis:{} }
+// DB.players[name] = { sessions:0, wins:0, losses:0, ptsFor:0, ptsAgainst:0, pairWins:{}, nemesis:{}, elo:1200 }
 
 function getOrCreatePlayer(name) {
   if (!DB.players[name]) {
-    DB.players[name] = { sessions:0, wins:0, losses:0, ptsFor:0, ptsAgainst:0, pairWins:{}, nemesis:{} };
+    DB.players[name] = { sessions:0, wins:0, losses:0, ptsFor:0, ptsAgainst:0, pairWins:{}, nemesis:{}, elo:1200 };
     saveStore();
   }
+  if(DB.players[name].elo===undefined) DB.players[name].elo=1200;
   return DB.players[name];
 }
 
@@ -1210,15 +1308,19 @@ function renderPlayerList() {
   }
   el.innerHTML = names.map(name => {
     const p = DB.players[name];
+    const elo = p.elo||1200;
+    const tier = eloTier(elo);
     const wr = p.wins+p.losses > 0 ? Math.round(p.wins/(p.wins+p.losses)*100) : 0;
-    const wrColor = wr>=60?'var(--teal)':wr>=40?'var(--yellow)':'var(--red)';
     return `<div class="player-card" onclick="openPlayerDetail('${name}')">
       <div class="player-avatar" style="background:${avatarColor(name)}">${initials(name)}</div>
       <div class="player-info">
         <div class="player-name">${name}</div>
         <div class="player-meta">${p.sessions} sessions · ${p.wins}W ${p.losses}L</div>
       </div>
-      <div class="player-wr" style="color:${wrColor}">${wr}%</div>
+      <div style="text-align:right">
+        <div style="font-size:18px">${tier.emoji}</div>
+        <div style="font-size:12px;font-weight:800;color:var(--text2)">${elo.toLocaleString()}</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1362,6 +1464,8 @@ function openPlayerDetail(name) {
   const wr = cs.wins+cs.losses>0?Math.round(cs.wins/(cs.wins+cs.losses)*100):0;
   const avgPts = cs.games>0?Math.round(cs.ptsFor/cs.games):0;
   const t = getTitle(cs.wins, cs.wins+cs.losses);
+  const elo = DB.players[name].elo||1200;
+  const tier = eloTier(elo);
 
   // Best partner — still from DB.players (not in results[])
   const partners = Object.entries(p.pairWins||{}).sort((a,b)=>b[1]-a[1]);
@@ -1371,23 +1475,22 @@ function openPlayerDetail(name) {
   const nemesis = Object.entries(p.nemesis||{}).sort((a,b)=>b[1]-a[1]);
   const topNemesis = nemesis.length ? `${nemesis[0][0]} (lost ${nemesis[0][1]}×)` : '—';
 
-  const wrColor = wr>=60?'var(--teal)':wr>=40?'var(--yellow)':'var(--red)';
-
   document.getElementById('player-detail-content').innerHTML = `
     <div class="pdetail-header">
       <div class="pdetail-avatar" style="background:${avatarColor(name)}">${initials(name)}</div>
       <div>
         <div class="pdetail-name">${name}</div>
-        <div class="pdetail-title">${t.label}</div>
+        <div class="pdetail-title">${tier.emoji} ${tier.label} · ${elo.toLocaleString()} Elo</div>
       </div>
     </div>
     <div class="stat-grid">
       <div class="stat-box"><div class="stat-box-val" style="color:var(--teal)">${cs.wins}</div><div class="stat-box-lbl">Wins</div></div>
       <div class="stat-box"><div class="stat-box-val" style="color:var(--red)">${cs.losses}</div><div class="stat-box-lbl">Losses</div></div>
-      <div class="stat-box"><div class="stat-box-val" style="color:${wrColor}">${wr}%</div><div class="stat-box-lbl">Win Rate</div></div>
+      <div class="stat-box"><div class="stat-box-val" style="color:var(--yellow)">${elo.toLocaleString()}</div><div class="stat-box-lbl">Elo</div></div>
     </div>
     <div>
       <div class="detail-row"><span class="detail-row-lbl">Sessions Played</span><span class="detail-row-val">${cs.sessions}</span></div>
+      <div class="detail-row"><span class="detail-row-lbl">Win Rate</span><span class="detail-row-val">${wr}%</span></div>
       <div class="detail-row"><span class="detail-row-lbl">Avg Points/Game</span><span class="detail-row-val">${avgPts}</span></div>
       <div class="detail-row"><span class="detail-row-lbl">Points Scored</span><span class="detail-row-val">${cs.ptsFor}</span></div>
       <div class="detail-row"><span class="detail-row-lbl">Best Partner 🤝</span><span class="detail-row-val">${bestPartner}</span></div>
@@ -1636,8 +1739,17 @@ function startSession(){
     lastSitOut: [],
     startTime: Date.now(),
     courtRounds: {}, // per-court round counter
+    eloSnapshot: {}, // elo at session start per player
+    eloDeltas: {},   // cumulative elo change this session
+    sessionStreaks: {}, // consecutive wins this session
   };
-  players.forEach(p=>{S.stats[p]={wins:0,losses:0,games:0,ptsFor:0,ptsAgainst:0}});
+  // Snapshot starting Elo for all players
+  players.forEach(p=>{
+    S.stats[p]={wins:0,losses:0,games:0,ptsFor:0,ptsAgainst:0};
+    S.eloSnapshot[p] = (DB.players[p]&&DB.players[p].elo)||1200;
+    S.eloDeltas[p] = 0;
+    S.sessionStreaks[p] = 0;
+  });
 
   showMatchScreen();
   renderMatches();
@@ -1857,6 +1969,25 @@ function renderMatches(restore=false){
          </div>`
       : '';
 
+    // Points at Stake (shown only before score is entered)
+    let stakeBar = '';
+    if(!res && DB.players[p1] && DB.players[p2] && DB.players[p3] && DB.players[p4]){
+      const stake = calcPointsAtStake([p1,p2],[p3,p4]);
+      stakeBar = `<div class="stake-bar">
+        <div class="stake-team">
+          <span class="stake-label">${p1.split(' ')[0]} & ${p2.split(' ')[0]}</span>
+          <span class="stake-pts win">Win +${stake.winW}</span>
+          <span class="stake-pts loss">Loss ${stake.lossW}</span>
+        </div>
+        <div class="stake-divider">⚡</div>
+        <div class="stake-team" style="text-align:right">
+          <span class="stake-label">${p3.split(' ')[0]} & ${p4.split(' ')[0]}</span>
+          <span class="stake-pts win">Win +${stake.winL}</span>
+          <span class="stake-pts loss">Loss ${stake.lossL}</span>
+        </div>
+      </div>`;
+    }
+
     cont.insertAdjacentHTML('beforeend',`
       <div class="match-card ${king?'king-court':''} a0" id="mc-${i}" style="animation-delay:${i*.08}s">
         <div class="mc-header ${king?'king':''}">
@@ -1871,6 +2002,7 @@ function renderMatches(restore=false){
           <div class="vs-div">VS</div>
           ${teamBPanel}
         </div>
+        ${stakeBar}
         ${scoreArea}
         ${courtNextBtn}
       </div>`);
@@ -1932,6 +2064,19 @@ function confirmScoreByValue(courtIdx){
   // Update session stats
   winners.forEach(p=>{S.stats[p].wins++;S.stats[p].games++;S.stats[p].ptsFor+=winnerScore;S.stats[p].ptsAgainst+=loserScore;});
   losers.forEach(p=> {S.stats[p].losses++;S.stats[p].games++;S.stats[p].ptsFor+=loserScore;S.stats[p].ptsAgainst+=winnerScore;});
+
+  // ── Apply Elo ratings ──
+  const eloChanges = applyEloResult(winners, losers);
+  if(!S.eloDeltas) S.eloDeltas={};
+  Object.entries(eloChanges).forEach(([name,delta])=>{
+    S.eloDeltas[name] = (S.eloDeltas[name]||0) + delta;
+  });
+  saveStore(); // persist Elo changes to DB.players immediately
+
+  // ── Update session streaks ──
+  if(!S.sessionStreaks) S.sessionStreaks={};
+  winners.forEach(p=>{ S.sessionStreaks[p]=(S.sessionStreaks[p]||0)+1; });
+  losers.forEach(p=>{  S.sessionStreaks[p]=0; });
 
   const k=pk(winners[0],winners[1]);
   S.pairStats[k]=(S.pairStats[k]||0)+1;
@@ -2026,9 +2171,18 @@ function updateLiveStrip(){
   const maxWins=sorted[0]?sorted[0][1].wins:0;
   s.innerHTML=sorted.map(([n,d])=>{
     const isLead=d.wins>0&&d.wins===maxWins;
-    return `<div class="ls-chip">
-      <span>${n}</span>
+    const streak=S.sessionStreaks&&S.sessionStreaks[n]||0;
+    const fire=streak>=5?'🔥🔥':streak>=3?'🔥':'';
+    const elo=(DB.players[n]&&DB.players[n].elo)||1200;
+    const tier=eloTier(elo);
+    const delta=S.eloDeltas&&S.eloDeltas[n]||0;
+    const deltaStr=delta>0?`+${delta}`:delta<0?`${delta}`:'';
+    const deltaColor=delta>0?'var(--teal)':delta<0?'var(--red)':'var(--muted)';
+    return `<div class="ls-chip${isLead?' ls-lead':''}">
+      <span>${n}${fire?'<span style="font-size:11px">'+fire+'</span>':''}</span>
       <span class="ls-wins${d.wins===0?' zero':''}${isLead?' lead':''}">${d.wins}W</span>
+      <span style="font-size:10px;font-weight:700;color:var(--muted)">${tier.emoji}${elo}</span>
+      ${deltaStr?`<span style="font-size:10px;font-weight:800;color:${deltaColor}">${deltaStr}</span>`:''}
     </div>`;
   }).join('');
 }
@@ -2264,6 +2418,8 @@ function finishSession(){
     dreamDuo: Object.entries(S.pairStats).sort((a,b)=>b[1]-a[1])[0]||null,
     scoreLog: JSON.parse(JSON.stringify(S.scoreLog||[])),
     playerList: [...S.players],
+    eloDeltas: JSON.parse(JSON.stringify(S.eloDeltas||{})),
+    eloSnapshot: JSON.parse(JSON.stringify(S.eloSnapshot||{})),
   };
   DB.sessions.unshift(sessionRecord);
   DB.currentSession=null;
@@ -2275,7 +2431,7 @@ function finishSession(){
   document.getElementById('report-sub').textContent=`${S.sessionRounds} Rounds · ${S.players.length} Players · ${new Date().toLocaleDateString('en-MY',{day:'numeric',month:'short'})}`;
 
   setTimeout(()=>confetti({particleCount:130,spread:80,origin:{y:.3},colors:['#00897b','#f9a825','#f4511e','#1e88e5','#e53935']}),350);
-  buildReport(); buildShareCard();
+  buildReport();
 }
 
 function newSession(){
@@ -2365,24 +2521,35 @@ function buildReport(){
   const rivalrySummaryHtml = buildRivalrySummary();
   document.getElementById('rivalry-report-section').innerHTML = rivalrySummaryHtml;
 
-  const rows=sorted.map(([n,s],i)=>{
+  // Sort by Elo change this session (biggest gain first), fallback win rate
+  const eloSorted = [...sorted].sort((a,b)=>{
+    const dA=S.eloDeltas&&S.eloDeltas[a[0]]||0;
+    const dB=S.eloDeltas&&S.eloDeltas[b[0]]||0;
+    return dB-dA;
+  });
+  const rows=eloSorted.map(([n,s],i)=>{
     const w=wr(s.wins,s.games),rc=w>=60?'hot':w>=40?'mid':'cold',t=getTitle(s.wins,s.games);
     const pd=(s.ptsFor||0)-(s.ptsAgainst||0);
-    const pdc=pd>0?'var(--green)':pd<0?'var(--red)':'var(--muted)';
-    const pdStr=(pd>0?'+':'')+pd;
+    const elo=(DB.players[n]&&DB.players[n].elo)||1200;
+    const tier=eloTier(elo);
+    const delta=S.eloDeltas&&S.eloDeltas[n]||0;
+    const deltaStr=(delta>0?'+':'')+delta;
+    const deltaColor=delta>0?'var(--teal)':delta<0?'var(--red)':'var(--muted)';
+    const streak=S.sessionStreaks&&S.sessionStreaks[n]||0;
+    const fire=streak>=5?'🔥🔥':streak>=3?'🔥':'';
     return `<div class="lb-row">
       <div class="lb-rank ${i<3?'top':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-      <div class="lb-pname">${n}<div class="lb-psub">${t.label}</div></div>
+      <div class="lb-pname">${n} ${fire}<div class="lb-psub">${tier.emoji} ${tier.label} · ${elo.toLocaleString()}</div></div>
       <div class="lb-num">${s.games}</div>
       <div class="lb-num w">${s.wins}</div>
       <div class="lb-num l">${s.losses}</div>
       <div class="lb-wr ${rc}">${w}%</div>
-      <div class="lb-num" style="font-weight:800;color:${pdc}">${pdStr}</div>
+      <div class="lb-num" style="font-weight:900;color:${deltaColor}">${deltaStr}</div>
     </div>`;
   }).join('');
   document.getElementById('lb-content').innerHTML=`
     <div class="lb">
-      <div class="lb-head"><div>#</div><div>Player</div><div style="text-align:center">GP</div><div style="text-align:center">W</div><div style="text-align:center">L</div><div style="text-align:center">WR%</div><div style="text-align:center">+/-</div></div>
+      <div class="lb-head"><div>#</div><div>Player</div><div style="text-align:center">GP</div><div style="text-align:center">W</div><div style="text-align:center">L</div><div style="text-align:center">WR%</div><div style="text-align:center">Elo±</div></div>
       ${rows}
     </div>`;
 }
@@ -2734,6 +2901,15 @@ function renderFunFacts(){
 }
 
 function buildFactsGrid(facts){
+  const eloSection = (facts.topGainer||facts.bigDrop) ? `
+    <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px;margin-top:2px">
+      <div class="card-label" style="margin-bottom:8px">📈 Elo Awards</div>
+      <div class="ff-facts-grid">
+        ${facts.topGainer&&facts.topGainer[1]>0 ? renderFactCard('📈','TOP GAINER',facts.topGainer[0],'+'+(facts.topGainer[1])+' Elo this session','#e8f5e9','#2e7d32') : ''}
+        ${facts.bigDrop&&facts.bigDrop[1]<0 ? renderFactCard('📉','BIGGEST DROP',facts.bigDrop[0],facts.bigDrop[1]+' Elo this session','#ffebee','#c62828') : ''}
+        ${facts.marketMaker ? renderFactCard('🏪','MARKET MAKER',facts.marketMaker.name,facts.marketMaker.value+' games — floor was lively!','#e3f2fd','#1565c0') : ''}
+      </div>
+    </div>` : '';
   return `<div class="ff-facts-grid">
     ${renderFactCard('🏃','THE MARATHON',facts.marathon.name,facts.marathon.value+' games played','#e3f2fd','#1e88e5')}
     ${renderFactCard('🧱','THE WALL',facts.wall.name,facts.wall.value+' pts conceded avg','#e8f5e9','#43a047')}
@@ -2741,6 +2917,7 @@ function buildFactsGrid(facts){
     ${renderFactCard('💥','POINT MACHINE',facts.machine.name,facts.machine.value+' pts scored','#fbe9e7','#f4511e')}
     ${renderFactCard('🤝','POWER PAIR',facts.pair.name,facts.pair.value+' wins together','#f3e5f5','#8e24aa')}
     ${facts.comeback?renderFactCard('⚡','NAIL-BITER',facts.comeback.name,facts.comeback.value,'#e0f2f1','#00897b'):''}
+    ${eloSection}
   </div>`;
 }
 
@@ -2827,6 +3004,10 @@ function computeSessionFunFacts(s){
     machine: { name: machine[0], value: machine[1].ptsFor },
     pair: topPair ? { name: topPair[0].replace('||',' & '), value: topPair[1] } : { name:'—', value:0 },
     comeback: diff<=2 ? { name: `${closestGame.winners.join(' & ')} won`, value:`${closestGame.winnerScore}–${closestGame.loserScore}` } : null,
+    // Elo awards from stored session data
+    topGainer: s.eloDeltas ? Object.entries(s.eloDeltas).sort((a,b)=>b[1]-a[1])[0] : null,
+    bigDrop:   s.eloDeltas ? Object.entries(s.eloDeltas).sort((a,b)=>a[1]-b[1])[0] : null,
+    marketMaker: marathon[0] ? { name: marathon[0], value: marathon[1].games } : null,
   };
 }
 
@@ -3318,30 +3499,37 @@ function renderHistory(){
     <div class="stat-card"><div class="sc-val">${topPlayer?topPlayer[0].split(' ')[0]:'—'}</div><div class="sc-lbl">All-Time 🏆</div></div>`;
   document.getElementById('hist-sub').textContent=`${totalSessions} session${totalSessions!==1?'s':''} · ${allPlayers} players`;
 
-  // Career table — derived from sessions, only players with actual game history
-  const cSorted=Object.entries(career).sort((a,b)=>{
-    const wa=a[1].wins+a[1].losses?a[1].wins/(a[1].wins+a[1].losses):0;
-    const wb=b[1].wins+b[1].losses?b[1].wins/(b[1].wins+b[1].losses):0;
-    return wb-wa||b[1].wins-a[1].wins;
-  });
+  // Career table — sorted by Elo rating
+  const cSorted=Object.entries(DB.players)
+    .filter(([n])=>career[n]&&career[n].games>0)
+    .sort((a,b)=>{
+      const eA=a[1].elo||1200, eB=b[1].elo||1200;
+      return eB-eA;
+    });
   if(!cSorted.length){
     document.getElementById('career-table').innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;font-weight:600">No career data yet. Play some sessions!</div>';
   } else {
     const cRows=cSorted.map(([n,p],i)=>{
-      const cwr=p.wins+p.losses?Math.round(p.wins/(p.wins+p.losses)*100):0;
+      const cs=career[n]||{wins:0,losses:0,games:0,sessions:0};
+      const cwr=cs.wins+cs.losses?Math.round(cs.wins/(cs.wins+cs.losses)*100):0;
       const rc=cwr>=60?'hot':cwr>=40?'mid':'cold';
+      const elo=p.elo||1200;
+      const tier=eloTier(elo);
       return `<div class="ct-row">
         <div class="lb-rank ${i<3?'top':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-        <div style="font-size:14px;font-weight:800;cursor:pointer" onclick="goPage('players');setTimeout(()=>openPlayerDetail('${n}'),200)">${n}</div>
-        <div class="lb-num" style="text-align:center">${p.sessions}</div>
-        <div class="lb-num w" style="text-align:center">${p.wins}</div>
-        <div class="lb-num l" style="text-align:center">${p.losses}</div>
-        <div class="lb-wr ${rc}" style="text-align:center">${cwr}%</div>
+        <div style="cursor:pointer" onclick="goPage('players');setTimeout(()=>openPlayerDetail('${n}'),200)">
+          <div style="font-size:14px;font-weight:800">${n}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">${tier.emoji} ${tier.label}</div>
+        </div>
+        <div class="lb-num" style="text-align:center">${cs.sessions}</div>
+        <div class="lb-num w" style="text-align:center">${cs.wins}</div>
+        <div class="lb-num l" style="text-align:center">${cs.losses}</div>
+        <div style="text-align:center;font-family:var(--fc);font-size:15px;font-weight:900;color:var(--yellow)">${elo.toLocaleString()}</div>
       </div>`;
     }).join('');
     document.getElementById('career-table').innerHTML=`
       <div class="career-table">
-        <div class="ct-head"><div>#</div><div>Player</div><div style="text-align:center">S</div><div style="text-align:center">W</div><div style="text-align:center">L</div><div style="text-align:center">WR%</div></div>
+        <div class="ct-head"><div>#</div><div>Player</div><div style="text-align:center">S</div><div style="text-align:center">W</div><div style="text-align:center">L</div><div style="text-align:center">Elo</div></div>
         ${cRows}
       </div>`;
   }
