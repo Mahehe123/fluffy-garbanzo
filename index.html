@@ -14,6 +14,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 /* ═══════════════════════════════════════
    DESIGN TOKENS
@@ -873,6 +876,12 @@ body::before{
     <span class="ni">🎲</span>Fun Facts
   </button>
 </nav>
+<!-- Sync status indicator (floats above nav) -->
+<div id="sync-indicator" style="
+  position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 6px);right:12px;
+  font-size:11px;font-weight:700;z-index:99;pointer-events:none;
+  transition:opacity .3s;letter-spacing:.2px;
+"></div>
 
 <!-- ════════════════ PLAYERS PAGE ════════════════ -->
 <div id="page-players" class="page">
@@ -1168,20 +1177,119 @@ body::before{
 
 <script>
 /* ═══════════════════════════════════════════
-   DATA STORE
+   FIREBASE INIT
+═══════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBdaN04UbLLVOeEjzzLUvrAhSNURam2Rc8",
+  authDomain: "fluffy-garbanzo-28451.firebaseapp.com",
+  projectId: "fluffy-garbanzo-28451",
+  storageBucket: "fluffy-garbanzo-28451.firebasestorage.app",
+  messagingSenderId: "365525958368",
+  appId: "1:365525958368:web:fa0da68cb93122171dda85"
+};
+firebase.initializeApp(firebaseConfig);
+const _db = firebase.firestore();
+const FB_DOC = _db.collection('pickleballPro').doc('data');
+
+/* ═══════════════════════════════════════════
+   DATA STORE  (Firestore + localStorage cache)
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pickleballPro_v2';
+const APP_PWD   = 'Weekend';
+
+function _emptyDB(){
+  return { players:{}, sessions:[], currentSession:null, h2h:{}, pairH2h:{} };
+}
 
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) return JSON.parse(raw);
   } catch(e){}
-  return { players:{}, sessions:[], currentSession:null, h2h:{}, pairH2h:{} };
+  return _emptyDB();
 }
 
 function saveStore() {
+  // Always write to localStorage immediately (fast, offline-safe)
   try { localStorage.setItem(STORE_KEY, JSON.stringify(DB)); } catch(e){}
+  // Then push to Firestore asynchronously
+  _syncToFirebase();
+}
+
+let _syncTimer = null;
+let _syncPending = false;
+let _syncStatus = 'idle'; // 'idle' | 'syncing' | 'ok' | 'error'
+
+function _syncToFirebase(){
+  // Debounce — wait 800ms of silence before writing
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(async ()=>{
+    _setSyncStatus('syncing');
+    try {
+      // Firestore has a 1MB document limit — strip the currentSession blob before syncing
+      const payload = JSON.parse(JSON.stringify(DB));
+      delete payload.currentSession; // live session state stays local only
+      await FB_DOC.set(payload);
+      _setSyncStatus('ok');
+    } catch(err){
+      console.warn('[Firebase] sync failed:', err);
+      _setSyncStatus('error');
+    }
+  }, 800);
+}
+
+async function loadFromFirebase(){
+  _setSyncStatus('syncing');
+  try {
+    const snap = await FB_DOC.get();
+    if(snap.exists){
+      const remote = snap.data();
+      // Merge remote into DB, keeping local currentSession (live session state)
+      const localSession = DB.currentSession;
+      DB = { ...remote, currentSession: localSession };
+      // Write merged result to localStorage cache
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(DB)); } catch(e){}
+      migrateElo();
+      _setSyncStatus('ok');
+      return true;
+    } else {
+      // First ever load — push local data up to Firestore
+      _setSyncStatus('syncing');
+      const payload = JSON.parse(JSON.stringify(DB));
+      delete payload.currentSession;
+      await FB_DOC.set(payload);
+      _setSyncStatus('ok');
+      return false;
+    }
+  } catch(err){
+    console.warn('[Firebase] load failed:', err);
+    _setSyncStatus('error');
+    return false;
+  }
+}
+
+function _setSyncStatus(status){
+  _syncStatus = status;
+  const el = document.getElementById('sync-indicator');
+  if(!el) return;
+  const map = {
+    syncing: { text:'☁️ Syncing…',  color:'var(--muted)' },
+    ok:      { text:'☁️ Synced',    color:'var(--teal)'  },
+    error:   { text:'⚠️ Offline',   color:'var(--red)'   },
+    idle:    { text:'',             color:'transparent'  },
+  };
+  const s = map[status]||map.idle;
+  el.textContent = s.text;
+  el.style.color = s.color;
+  if(status==='ok') setTimeout(()=>{ if(_syncStatus==='ok'){ el.textContent=''; } },3000);
+}
+
+/* ── Password prompt helper ── */
+function requirePassword(action){
+  const pw = prompt('🔒 Enter password to continue:');
+  if(pw===null) return; // cancelled
+  if(pw !== APP_PWD){ showToast('Incorrect password ❌'); return; }
+  action();
 }
 
 let DB = loadStore();
@@ -2901,15 +3009,6 @@ function renderFunFacts(){
 }
 
 function buildFactsGrid(facts){
-  const eloSection = (facts.topGainer||facts.bigDrop) ? `
-    <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px;margin-top:2px">
-      <div class="card-label" style="margin-bottom:8px">📈 Elo Awards</div>
-      <div class="ff-facts-grid">
-        ${facts.topGainer&&facts.topGainer[1]>0 ? renderFactCard('📈','TOP GAINER',facts.topGainer[0],'+'+(facts.topGainer[1])+' Elo this session','#e8f5e9','#2e7d32') : ''}
-        ${facts.bigDrop&&facts.bigDrop[1]<0 ? renderFactCard('📉','BIGGEST DROP',facts.bigDrop[0],facts.bigDrop[1]+' Elo this session','#ffebee','#c62828') : ''}
-        ${facts.marketMaker ? renderFactCard('🏪','MARKET MAKER',facts.marketMaker.name,facts.marketMaker.value+' games — floor was lively!','#e3f2fd','#1565c0') : ''}
-      </div>
-    </div>` : '';
   return `<div class="ff-facts-grid">
     ${renderFactCard('🏃','THE MARATHON',facts.marathon.name,facts.marathon.value+' games played','#e3f2fd','#1e88e5')}
     ${renderFactCard('🧱','THE WALL',facts.wall.name,facts.wall.value+' pts conceded avg','#e8f5e9','#43a047')}
@@ -2917,7 +3016,7 @@ function buildFactsGrid(facts){
     ${renderFactCard('💥','POINT MACHINE',facts.machine.name,facts.machine.value+' pts scored','#fbe9e7','#f4511e')}
     ${renderFactCard('🤝','POWER PAIR',facts.pair.name,facts.pair.value+' wins together','#f3e5f5','#8e24aa')}
     ${facts.comeback?renderFactCard('⚡','NAIL-BITER',facts.comeback.name,facts.comeback.value,'#e0f2f1','#00897b'):''}
-    ${eloSection}
+    ${facts.topGainer&&facts.topGainer[1]>0?renderFactCard('📈','TOP GAINER',facts.topGainer[0],'+'+(facts.topGainer[1])+' Elo this session','#e8f5e9','#2e7d32'):''}
   </div>`;
 }
 
@@ -3006,8 +3105,6 @@ function computeSessionFunFacts(s){
     comeback: diff<=2 ? { name: `${closestGame.winners.join(' & ')} won`, value:`${closestGame.winnerScore}–${closestGame.loserScore}` } : null,
     // Elo awards from stored session data
     topGainer: s.eloDeltas ? Object.entries(s.eloDeltas).sort((a,b)=>b[1]-a[1])[0] : null,
-    bigDrop:   s.eloDeltas ? Object.entries(s.eloDeltas).sort((a,b)=>a[1]-b[1])[0] : null,
-    marketMaker: marathon[0] ? { name: marathon[0], value: marathon[1].games } : null,
   };
 }
 
@@ -3765,47 +3862,32 @@ function deleteSessionStep(){
 }
 
 function _executeDeleteSession(){
+  requirePassword(()=>{
   const idx = _viewingSessionIdx;
   if(idx===null || !DB.sessions[idx]) return;
   const s = DB.sessions[idx];
 
   if(s.scoreLog && s.scoreLog.length){
-    // Full stat reversal using scoreLog
     s.scoreLog.forEach(e=>{
-      e.winners.forEach(p=>{
-        const pl=DB.players[p]; if(!pl) return;
-        pl.wins--; pl.ptsFor-=e.winnerScore; pl.ptsAgainst-=e.loserScore;
-      });
-      e.losers.forEach(p=>{
-        const pl=DB.players[p]; if(!pl) return;
-        pl.losses--; pl.ptsFor-=e.loserScore; pl.ptsAgainst-=e.winnerScore;
-      });
+      e.winners.forEach(p=>{ const pl=DB.players[p]; if(!pl) return; pl.wins--; pl.ptsFor-=e.winnerScore; pl.ptsAgainst-=e.loserScore; });
+      e.losers.forEach(p=>{  const pl=DB.players[p]; if(!pl) return; pl.losses--; pl.ptsFor-=e.loserScore; pl.ptsAgainst-=e.winnerScore; });
     });
-    // Reverse session count for each player in this session
-    (s.playerList||[]).forEach(p=>{
-      const pl=DB.players[p]; if(!pl) return;
-      pl.sessions=Math.max(0,pl.sessions-1);
-    });
-    // Floor all stats at 0 to avoid negatives from data edge cases
+    (s.playerList||[]).forEach(p=>{ const pl=DB.players[p]; if(!pl) return; pl.sessions=Math.max(0,pl.sessions-1); });
     Object.values(DB.players).forEach(pl=>{
-      pl.wins=Math.max(0,pl.wins||0);
-      pl.losses=Math.max(0,pl.losses||0);
-      pl.sessions=Math.max(0,pl.sessions||0);
-      pl.ptsFor=Math.max(0,pl.ptsFor||0);
-      pl.ptsAgainst=Math.max(0,pl.ptsAgainst||0);
+      pl.wins=Math.max(0,pl.wins||0); pl.losses=Math.max(0,pl.losses||0);
+      pl.sessions=Math.max(0,pl.sessions||0); pl.ptsFor=Math.max(0,pl.ptsFor||0); pl.ptsAgainst=Math.max(0,pl.ptsAgainst||0);
     });
     showToast('Session deleted & stats reversed ✅');
   } else {
-    // Legacy session — no scoreLog, just remove the record
     showToast('Session removed (no game log to reverse stats) ℹ️');
   }
 
   DB.sessions.splice(idx,1);
   saveStore();
-  _viewingSessionIdx=null;
-  _deleteStep=0;
+  _viewingSessionIdx=null; _deleteStep=0;
   closeModal('modal-session-detail');
   renderHistory();
+  }); // end requirePassword
 }
 function exportData(){
   const json=JSON.stringify(DB,null,2);
@@ -3835,7 +3917,8 @@ function clearAllDataStep(){
     },5000);
   } else if(_clearStep===1){
     clearTimeout(_clearTimer);
-    // Hard wipe — removeItem guarantees the key is gone, then re-init fresh
+    requirePassword(()=>{
+      // Hard wipe — removeItem guarantees the key is gone, then re-init fresh
     localStorage.removeItem(STORE_KEY);
     DB={ players:{}, sessions:[], currentSession:null, h2h:{}, pairH2h:{} };
     saveStore(); // write the clean empty shell back
@@ -3875,11 +3958,12 @@ function clearAllDataStep(){
     // Refresh all pages
     renderPlayerList(); renderHistory(); refreshRosterPicker();
     showToast('All data cleared 🗑');
+    }); // end requirePassword
   }
 }
 
 function triggerImport(){
-  document.getElementById('import-input').click();
+  requirePassword(()=>{ document.getElementById('import-input').click(); });
 }
 
 function importData(e){
@@ -3958,11 +4042,18 @@ function showToast(m){
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded',()=>{
+window.addEventListener('DOMContentLoaded', async ()=>{
+  // Show loading state while Firebase loads
+  showToast('☁️ Loading data…');
+
+  // Load from Firebase (merges with local cache)
+  await loadFromFirebase();
+
+  // Init UI with fresh data
   refreshRosterPicker();
   refreshSessionCount();
   checkResumeBanner();
-  // Start with 2 empty session rows as hint
+  renderPlayerList();
   addSessionRow('',false); addSessionRow('',false);
 });
 
