@@ -1,0 +1,495 @@
+{
+  "settings": {
+    "adminPass": "golazo2026",
+    "tournamentDeadline": "2026-06-28T00:00:00Z",
+    "champion": "",
+    "goldenBoot": ""
+  },
+  "players": {
+    "test": {
+      "name": "Test",
+      "pin": "1234",
+      "token": "2bf592aa0669a7e319da1eaa0873484d",
+      "champion": "",
+      "goldenBoot": ""
+    }
+  },
+  "matches": [
+    {
+      "id": "m1",
+      "group": "A",
+      "home": "Mexico",
+      "away": "South Africa",
+      "kickoff": "2026-06-11T19:00:00Z",
+      "result": {
+        "home": 2,
+        "away": 0,
+        "scorers": [
+          "Julián Quiñones",
+          "Raúl Jiménez"
+        ],
+        "firstScorer": "Julián Quiñones",
+        "auto": true
+      }
+    },
+    {
+      "id": "m2",
+      "group": "A",
+      "home": "South Korea",
+      "away": "Czech Republic",
+      "kickoff": "2026-06-12T02:00:00Z",
+      "result": {
+        "home": 2,
+        "away": 1,
+        "scorers": [
+          "Ladislav Krejcí",
+          "Hwang In-Beom",
+          "Oh Hyeon-Gyu"
+        ],
+        "firstScorer": "Ladislav Krejcí",
+        "auto": true
+      }
+    },
+    {
+      "id": "m3",
+      "group": "B",
+      "home": "Canada",
+      "away": "Bosnia & Herzegovina",
+      "kickoff": "2026-06-12T19:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m4",
+      "group": "D",
+      "home": "USA",
+      "away": "Paraguay",
+      "kickoff": "2026-06-13T01:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m5",
+      "group": "B",
+      "home": "Qatar",
+      "away": "Switzerland",
+      "kickoff": "2026-06-13T19:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m6",
+      "group": "C",
+      "home": "Brazil",
+      "away": "Morocco",
+      "kickoff": "2026-06-13T22:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m7",
+      "group": "C",
+      "home": "Haiti",
+      "away": "Scotland",
+      "kickoff": "2026-06-14T01:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m8",
+      "group": "D",
+      "home": "Australia",
+      "away": "Turkey",
+      "kickoff": "2026-06-14T04:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m9",
+      "group": "E",
+      "home": "Germany",
+      "away": "Curacao",
+      "kickoff": "2026-06-14T17:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m10",
+      "group": "F",
+      "home": "Netherlands",
+      "away": "Japan",
+      "kickoff": "2026-06-14T20:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m11",
+      "group": "E",
+      "home": "Ivory Coast",
+      "away": "Ecuador",
+      "kickoff": "2026-06-14T23:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m12",
+      "group": "F",
+      "home": "Sweden",
+      "away": "Tunisia",
+      "kickoff": "2026-06-15T02:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m13",
+      "group": "H",
+      "home": "Spain",
+      "away": "Cape Verde",
+      "kickoff": "2026-06-15T16:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m14",
+      "group": "G",
+      "home": "Belgium",
+      "away": "Egypt",
+      "kickoff": "2026-06-15T19:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m15",
+      "group": "H",
+      "home": "Saudi Arabia",
+      "away": "Uruguay",
+      "kickoff": "2026-06-15T22:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m16",
+      "group": "G",
+      "home": "Iran",
+      "away": "New Zealand",
+      "kickoff": "2026-06-16T01:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m17",
+      "group": "I",
+      "home": "France",
+      "away": "Senegal",
+      "kickoff": "2026-06-16T19:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m18",
+      "group": "I",
+      "home": "Iraq",
+      "away": "Norway",
+      "kickoff": "2026-06-16T22:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m19",
+      "group": "J",
+      "home": "Argentina",
+      "away": "Algeria",
+      "kickoff": "2026-06-17T01:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m20",
+      "group": "J",
+      "home": "Austria",
+      "away": "Jordan",
+      "kickoff": "2026-06-17T04:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m21",
+      "group": "K",
+      "home": "Portugal",
+      "away": "DR Congo",
+      "kickoff": "2026-06-17T17:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m22",
+      "group": "L",
+      "home": "England",
+      "away": "Croatia",
+      "kickoff": "2026-06-17T20:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m23",
+      "group": "L",
+      "home": "Ghana",
+      "away": "Panama",
+      "kickoff": "2026-06-17T23:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m24",
+      "group": "K",
+      "home": "Uzbekistan",
+      "away": "Colombia",
+      "kickoff": "2026-06-18T02:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m25",
+      "group": "A",
+      "home": "Czech Republic",
+      "away": "South Africa",
+      "kickoff": "2026-06-18T16:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m26",
+      "group": "B",
+      "home": "Switzerland",
+      "away": "Bosnia & Herzegovina",
+      "kickoff": "2026-06-18T19:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m27",
+      "group": "B",
+      "home": "Canada",
+      "away": "Qatar",
+      "kickoff": "2026-06-18T22:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m28",
+      "group": "A",
+      "home": "Mexico",
+      "away": "South Korea",
+      "kickoff": "2026-06-19T01:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m29",
+      "group": "D",
+      "home": "USA",
+      "away": "Australia",
+      "kickoff": "2026-06-19T19:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m30",
+      "group": "C",
+      "home": "Scotland",
+      "away": "Morocco",
+      "kickoff": "2026-06-19T22:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m31",
+      "group": "C",
+      "home": "Brazil",
+      "away": "Haiti",
+      "kickoff": "2026-06-20T00:30:00Z",
+      "result": null
+    },
+    {
+      "id": "m32",
+      "group": "D",
+      "home": "Turkey",
+      "away": "Paraguay",
+      "kickoff": "2026-06-20T03:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m33",
+      "group": "F",
+      "home": "Netherlands",
+      "away": "Sweden",
+      "kickoff": "2026-06-20T17:00:00Z",
+      "result": null
+    },
+    {
+      "id": "m34",
+      "group": "E",
+      "home": "Germany",
+      "away": "Ivory Coast",
+      "kickoff": "2026-06-20T20:00:00Z",
+      "result": null
+    }
+  ],
+  "predictions": {},
+  "squads": {
+    "brazil": [
+      {
+        "name": "Ederson",
+        "pos": "G",
+        "jersey": "23"
+      },
+      {
+        "name": "Alisson Becker",
+        "pos": "G",
+        "jersey": "1"
+      },
+      {
+        "name": "Weverton",
+        "pos": "G",
+        "jersey": "12"
+      },
+      {
+        "name": "Alex Sandro",
+        "pos": "D",
+        "jersey": "6"
+      },
+      {
+        "name": "Léo Pereira",
+        "pos": "D",
+        "jersey": "15"
+      },
+      {
+        "name": "Marquinhos",
+        "pos": "D",
+        "jersey": "4"
+      },
+      {
+        "name": "Danilo",
+        "pos": "D",
+        "jersey": "13"
+      },
+      {
+        "name": "Douglas Santos",
+        "pos": "D",
+        "jersey": "16"
+      },
+      {
+        "name": "Gabriel Magalhães",
+        "pos": "D",
+        "jersey": "3"
+      },
+      {
+        "name": "Bremer",
+        "pos": "D",
+        "jersey": "14"
+      },
+      {
+        "name": "Roger Ibañez",
+        "pos": "D",
+        "jersey": "24"
+      },
+      {
+        "name": "Casemiro null",
+        "pos": "M",
+        "jersey": "5"
+      },
+      {
+        "name": "Fabinho",
+        "pos": "M",
+        "jersey": "17"
+      },
+      {
+        "name": "Bruno Guimarães",
+        "pos": "M",
+        "jersey": "8"
+      },
+      {
+        "name": "Lucas Paquetá",
+        "pos": "M",
+        "jersey": "20"
+      },
+      {
+        "name": "Éderson",
+        "pos": "M",
+        "jersey": "2"
+      },
+      {
+        "name": "Danilo Santos",
+        "pos": "M",
+        "jersey": "18"
+      },
+      {
+        "name": "Neymar",
+        "pos": "F",
+        "jersey": "10"
+      },
+      {
+        "name": "Raphinha",
+        "pos": "F",
+        "jersey": "11"
+      },
+      {
+        "name": "Vinícius Júnior",
+        "pos": "F",
+        "jersey": "7"
+      },
+      {
+        "name": "Matheus Cunha",
+        "pos": "F",
+        "jersey": "9"
+      },
+      {
+        "name": "Gabriel Martinelli",
+        "pos": "F",
+        "jersey": "22"
+      },
+      {
+        "name": "Igor Thiago",
+        "pos": "F",
+        "jersey": "25"
+      },
+      {
+        "name": "Luiz Henrique",
+        "pos": "F",
+        "jersey": "21"
+      },
+      {
+        "name": "Endrick null",
+        "pos": "F",
+        "jersey": "19"
+      },
+      {
+        "name": "Rayan",
+        "pos": "F",
+        "jersey": "26"
+      }
+    ]
+  },
+  "espnTeamIds": {
+    "algeria": "624",
+    "argentina": "202",
+    "australia": "628",
+    "austria": "474",
+    "belgium": "459",
+    "bosnia & herzegovina": "452",
+    "brazil": "205",
+    "canada": "206",
+    "cape verde": "2597",
+    "colombia": "208",
+    "dr congo": "2850",
+    "croatia": "477",
+    "curacao": "11678",
+    "czech republic": "450",
+    "ecuador": "209",
+    "egypt": "2620",
+    "england": "448",
+    "france": "478",
+    "germany": "481",
+    "ghana": "4469",
+    "haiti": "2654",
+    "iran": "469",
+    "iraq": "4375",
+    "ivory coast": "4789",
+    "japan": "627",
+    "jordan": "2917",
+    "mexico": "203",
+    "morocco": "2869",
+    "netherlands": "449",
+    "new zealand": "2666",
+    "norway": "464",
+    "panama": "2659",
+    "paraguay": "210",
+    "portugal": "482",
+    "qatar": "4398",
+    "saudi arabia": "655",
+    "scotland": "580",
+    "senegal": "654",
+    "south africa": "467",
+    "south korea": "451",
+    "spain": "164",
+    "sweden": "466",
+    "switzerland": "475",
+    "tunisia": "659",
+    "turkey": "465",
+    "usa": "660",
+    "uruguay": "212",
+    "uzbekistan": "2570"
+  }
+}

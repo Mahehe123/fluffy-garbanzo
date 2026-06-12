@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GOLAZO · WC2026 Predictor</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+</head>
+<body>
+
+<header>
+  <div class="brand">⚽ GOLAZO</div>
+  <div class="sub" id="headerSub">World Cup 2026 · predictions with the lads</div>
+</header>
+
+<!-- Join screen -->
+<section id="joinScreen" class="hidden">
+  <div class="join-card">
+    <h2>Join the game</h2>
+    <p class="muted">Pick a name and a 4-digit PIN (so nobody nicks your account).<br>Use the same pair next time to log back in.</p>
+    <input id="joinName" placeholder="Your name" maxlength="24" autocomplete="off">
+    <input id="joinPin" placeholder="4-digit PIN" maxlength="4" inputmode="numeric" autocomplete="off">
+    <button id="joinBtn" class="primary">Let's go 🚀</button>
+    <div id="joinError" class="error"></div>
+  </div>
+</section>
+
+<!-- Main app -->
+<main id="app" class="hidden">
+  <div id="view"></div>
+</main>
+
+<nav id="tabs" class="hidden">
+  <button data-tab="matches" class="active">📅<span>Matches</span></button>
+  <button data-tab="table">🏆<span>Table</span></button>
+  <button data-tab="picks">⭐<span>My Picks</span></button>
+  <button data-tab="rules">📜<span>Rules</span></button>
+  <button data-tab="admin">🛠️<span>Admin</span></button>
+</nav>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
